@@ -61,20 +61,6 @@ sqrt_data <- sqrt(employment_TS)
 
 plot(sqrt_data,type='o',ylab='Time series plot of BC transformed 
      yearly average unemployment numbers.')
-# A small positive constant
-log_diff_employment <- log(sqrt_data + 2.7)
-min_value <- min(sqrt_data)
-min_value
-
-# qq plot
-qqnorm(log_diff_employment)
-qqline(log_diff_employment, col = 2)
-shapiro.test(log_diff_employment)
-
-par(mfrow=c(1,1))
-qqnorm(sqrt_data)
-qqline(sqrt_data, col = 2)
-shapiro.test(sqrt_data)
 
 par(mfrow=c(1,2))
 acf(sqrt_data, main='ACF plot of employment series.')
@@ -115,26 +101,55 @@ qqnorm(diff.employment)
 qqline(diff.employment, col = 2)
 shapiro.test(diff.employment)
 
-eacf(diff.employment)
-res = armasubsets(y=diff.employment , nar=5 , nma=5, y.name='p', ar.method='ols')
-plot(res)
+
+
+# A small positive constant
+log_diff_employment <- log(diff.employment + 2.7)
+min_value <- min(diff.employment)
+min_value
+
+# qq plot
+qqnorm(log_diff_employment)
+qqline(log_diff_employment, col = 2)
+shapiro.test(log_diff_employment)
 
 
 
-mean_diff_employment <- mean(diff.employment, na.rm = TRUE)
-sd_diff_employment <- sd(diff.employment, na.rm = TRUE)
+# Normalize function
+normalize <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)))
+}
 
-# Standardize the data
-standardized_diff_employment <- (sqrt_data - mean_diff_employment) / sd_diff_employment
+normalized_ts <- normalize(diff.employment)
 
-# Plot the standardized data
-plot(sqrt_data, type = 'o', ylab = 'Standardized Differenced Employment', main = "Time series plot of standardized first differenced yearly average employment numbers")
+# qq plot 
+qqnorm(normalized_ts)
+qqline(normalized_ts, col = 2)
+shapiro.test(normalized_ts)
 
-# Check normality of the standardized data
-par(mfrow=c(1,1))
-qqnorm(standardized_diff_employment)
-qqline(standardized_diff_employment, col = 2)
-shapiro.test(standardized_diff_employment)
+
+
+# 
+# eacf(diff.employment)
+# res = armasubsets(y=diff.employment , nar=5 , nma=5, y.name='p', ar.method='ols')
+# plot(res)
+# 
+# 
+# 
+# mean_diff_employment <- mean(diff.employment, na.rm = TRUE)
+# sd_diff_employment <- sd(diff.employment, na.rm = TRUE)
+# 
+# # Standardize the data
+# standardized_diff_employment <- (sqrt_data - mean_diff_employment) / sd_diff_employment
+# 
+# # Plot the standardized data
+# plot(sqrt_data, type = 'o', ylab = 'Standardized Differenced Employment', main = "Time series plot of standardized first differenced yearly average employment numbers")
+# 
+# # Check normality of the standardized data
+# par(mfrow=c(1,1))
+# qqnorm(standardized_diff_employment)
+# qqline(standardized_diff_employment, col = 2)
+# shapiro.test(standardized_diff_employment)
 # # check if there are non positive values
 # min_value <- min(diff.employment)
 # min_value
