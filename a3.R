@@ -421,16 +421,31 @@ show_ACF_PACF <- function(series,maxlag,name){
   par(mfrow=c(1,1))
 }
 
-#Work with data from 2000 to 2020 only
-#so models would run faster and 20 years are still
-#good enough for forecasting
-subset = window(employment_TS,2000,2020)
+#Subset the series ot 2010-2024 only
+subset = window(employment_TS,2010,)
 subset
+
+plot(subset,ylab='Employment',xlab="year", main = "Time series plot of Employment by 1000 from 2000-2024")
+points(y=subset,
+       x=time(subset),
+       pch=as.vector(season(subset)),
+       cex=0.8)
+
+# adf test (weak indicator of non-stationary)
+adf.test(subset, alternative = c("stationary")) # Use default value of k
+# pp test
+pp.test(subset)
+# kpss test
+kpss.test(subset)
+#=> The series is non-stationary
+# acf and pacf plots
+show_ACF_PACF(subset,maxlag=48,name="Employment series")
+#Slow decaying pattern in ACF => Seasonal trend
 
 sqrt_data <- sqrt(subset)
 
 sqrt_data
-plot(sqrt_data,ylab='Time series plot of BC transformed 
+plot(sqrt_data,ylab='Time series plot of SQRT 
      yearly average employment numbers.')
 
 # acf and pacf plots
@@ -438,198 +453,185 @@ par(mfrow=c(1,2))
 show_ACF_PACF(sqrt_data,maxlag=48,name="Squared-rooted subset series")
 par(mfrow=c(1,1))
 
-
 # DIFFERENCING
 
 diff_sqrt = diff(sqrt_data)
 par(mfrow=c(1,1))
-plot(diff_sqrt,type='o',ylab='Average employment numbers', main = "Time series plot of the first differenced
-     yearly average employment numbers.")
+plot(diff_sqrt,type='o',ylab='Average employment numbers', main = "Time series plot of the first difference
+      square-rooted series")
 abline(h=0)
+
+# adf, pp, kpss test, mcleod
 adf.test(diff_sqrt) # stationary
 pp.test(diff_sqrt) # stationary
 kpss.test(diff_sqrt) # stationary
-#All tests indicate the series at first difference is stationary
+McLeod.Li.test(y=diff_sqrt,main="McLeod-Li Test Statistics for Employment series")
+#=> The diff series is staionary
+
+hist(diff_sqrt, 
+     main = "Histogram of diff.employment",
+     xlab = "Difference in Employment",
+     ylab = "Frequency",
+     col = "skyblue",
+     border = "white")
+
+# qq plot 
+qqnorm(diff_sqrt)
+qqline(diff_sqrt, col = 2)
+shapiro.test(diff_sqrt)
+
+# pacf and acf plots
+show_ACF_PACF(diff_sqrt, maxlag = 60,name="the first difference
+      square-rooted series")
+#Still slow decay pattern in ACF => Seasonality trend
 
 #SEASONAL ARIMA
-#Start with a baseline model with D=1 and d=1
-m1 = Arima(subset,order=c(0,0,0),seasonal=list(order=c(0,1,0), period=12))
+sqrt_data
+#Start with a baseline model with D=1 
+m1 = Arima(sqrt_data,order=c(0,0,0),seasonal=list(order=c(0,1,0), period=12))
 res.m1 = residuals(m1);  
 par(mfrow=c(1,1))
 plot(res.m1,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
-show_ACF_PACF(res.m1, maxlag = 48, name="Residuals of model 1")
-#From the ACF and PACF => P=2 and Q=
+show_ACF_PACF(res.m1, maxlag = 78, name="Residuals of SARIMA(0,0,0)x(0,1,0)_12")
 
-#
-m2 = Arima(subset,order=c(0,0,0),seasonal=list(order=c(2,1,3), period=12),method="CSS")
+#From the ACF and PACF => P=0 and Q=2
+m2 = Arima(sqrt_data,order=c(0,0,0),seasonal=list(order=c(0,1,1), period=12),method="CSS")
 res.m2 = residuals(m2)
 par(mfrow=c(1,1))
 plot(res.m2,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
-show_ACF_PACF(res.m2, maxlag = 48,name="Residuals of model 2")
+show_ACF_PACF(res.m2, maxlag = 78,name="Residuals of SARIMA(0,0,0)x(0,1,1)_12")
 adf.test(res.m2) #Residuals are stationary
 
-#Use sqrt_data for less variance
 #Add differencing
-m3 = Arima(sqrt_data,order=c(0,1,0),seasonal=list(order=c(2,1,3), period=12))
+m3 = Arima(sqrt_data,order=c(0,1,0),seasonal=list(order=c(0,1,1), period=12))
 res.m3 = residuals(m3);  
 par(mfrow=c(1,1))
 plot(res.m3,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
-show_ACF_PACF(res.m3, maxlag = 48,name="Residuals of model 3")
+show_ACF_PACF(res.m3, maxlag = 48,name="Residuals of SARIMA(0,1,0)x(0,1,1)_12")
 #No trend or seasonality left, move forward
 adf.test(res.m3)
 
-
 #From ACF and PACF of m3
-#p = 3 and q = 5
+#p = 3 and q = 2
 #Determined by significant bars between 0 and 1
-m4 = Arima(sqrt_data,order=c(3,1,5),
-           seasonal=list(order=c(2,1,3), period=12),
-           method="CSS")
+m4 = Arima(sqrt_data,order=c(3,1,2),
+           seasonal=list(order=c(0,1,1), period=12))
 res.m4 = residuals(m4);  
 par(mfrow=c(1,1))
 plot(res.m4,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
-show_ACF_PACF(res.m4, maxlag = 48,name="Residuals of model 4")
-# SARIMA(3,1,5)x(2,1,3)_12
+show_ACF_PACF(res.m4, maxlag = 48,name="Residuals of SARIMA(3,1,3)x(0,1,2)_12")
+# SARIMA(3,1,2)x(0,1,1)_12
 
 eacf(res.m3) 
 # The tentative models are specified as 
-# SARIMA(0,1,1)x(2,1,3)_12
-# SARIMA(0,1,2)x(2,1,3)_12
-# SARIMA(1,1,1)x(2,1,3)_12
-# SARIMA(1,1,2)x(2,1,3)_12
+# SARIMA(0,1,2)x(0,1,1)_12
+# SARIMA(0,1,3)x(0,1,1)_12
+# SARIMA(1,1,2)x(0,1,1)_12
+# SARIMA(1,1,3)x(0,1,1)_12
 
 par(mfrow=c(1,1))
-bic_table = armasubsets(y=res.m3,nar=10,nma=10,y.name='p',ar.method='ols')
+bic_table = armasubsets(y=res.m3,nar=15,nma=15,y.name='p',ar.method='ols')
 plot(bic_table)
-# SARIMA(8,1,0)x(2,1,3)_12
-# SARIMA(1,1,0)x(2,1,3)_12
+# SARIMA(0,1,14)x(0,1,1)_12
+
 
 #Final sets of possible models
-# SARIMA(3,1,5)x(2,1,3)_12
-# SARIMA(0,1,1)x(2,1,3)_12
-# SARIMA(0,1,2)x(2,1,3)_12
-# SARIMA(1,1,1)x(2,1,3)_12
-# SARIMA(1,1,2)x(2,1,3)_12
-# SARIMA(8,1,0)x(2,1,3)_12
-# SARIMA(1,1,0)x(2,1,3)_12
+# SARIMA(3,1,2)x(0,1,1)_12
+# SARIMA(0,1,2)x(0,1,1)_12
+# SARIMA(0,1,3)x(0,1,1)_12
+# SARIMA(1,1,2)x(0,1,1)_12
+# SARIMA(1,1,3)x(0,1,1)_12
+# SARIMA(0,1,14)x(0,1,1)_12
 
 #Define a function to fit models quickly
 fit_SARIMA <- function(series,orders) {
   model_css = Arima(series,order=orders,
-                    seasonal=list(order=c(2,1,3),period=12),
+                    seasonal=list(order=c(0,1,1),period=12),
                     method='CSS')
   coef_css = coeftest(model_css)
   print("CSS Method")
   print(coef_css)
   
   model_ml = Arima(series,order=orders,
-                   seasonal=list(order=c(2,1,3),period=12),
+                   seasonal=list(order=c(0,1,1),period=12),
                    method='ML')
   coef_ml = coeftest(model_ml)
   print("ML Method")
   print(coef_ml)
   return(list(css=model_css,ml=model_ml))
 }
-
-
-# SARIMA(0,1,1)x(2,1,3)_12
-m011 = fit_SARIMA(sqrt_data,orders=c(0,1,1))
-#ML - all variables are significant
-residual.analysis(model = m011$css) #Did not capture the info well
-
-# SARIMA(0,1,2)x(5,1,1)_12
-m012=fit_SARIMA(sqrt_data,orders=c(0,1,2))
-residual.analysis(model = m012$css)  #Did not capture the info well
-
-# SARIMA(1,1,1)x(5,1,1)_12
-m111 = fit_SARIMA(sqrt_data,orders=c(1,1,1))
-#ML - NaNs in sma2 and sma3
-residual.analysis(model = m111$css) #Did not capture the info well
-
-#CSSML
-m111mlcss = Arima(sqrt_data,order=c(1,1,1),
-                  seasonal=list(order=c(2,1,3), period=12),method = "CSS-ML")
-coeftest(m111mlcss) 
-residual.analysis(model = m111mlcss)
-
-# SARIMA(1,1,2)x(5,1,1)_12
+# SARIMA(3,1,2)x(0,1,1)_12
+m312 = fit_SARIMA(sqrt_data,orders=c(3,1,2))
+residual.analysis(model = m312$css) #Did not capture the info well
+# SARIMA(0,1,2)x(0,1,1)_12
+m012 = fit_SARIMA(sqrt_data,orders=c(0,1,2))
+residual.analysis(model = m012$css) #Did not capture the info well
+# SARIMA(0,1,3)x(0,1,1)_12
+m013 = fit_SARIMA(sqrt_data,orders=c(0,1,3))
+residual.analysis(model = m013$css) #Did not capture the info well
+# SARIMA(1,1,2)x(0,1,1)_12
 m112 = fit_SARIMA(sqrt_data,orders=c(1,1,2))
 residual.analysis(model = m112$css) #Did not capture the info well
-m112mlcss = Arima(sqrt_data,order=c(1,1,2),
-                  seasonal=list(order=c(2,1,3), period=12),method = "CSS-ML")
-coeftest(m112mlcss)
-residual.analysis(model = m112mlcss) #Did not capture the info well
-
-x11()
-# SARIMA(3,1,5)x(2,1,3)_12
-m315 = fit_SARIMA(sqrt_data,orders=c(3,1,5))
-residual.analysis(model = m315$ml) #pretty residuals
-
-# SARIMA(8,1,0)x(5,1,1)_12
-m810 = fit_SARIMA(sqrt_data,orders=c(8,1,0))
-#Not all variables are significant
-residual.analysis(model = m810$css) #pretty good residuals
-
-# SARIMA(1,1,0)x(2,1,3)_12
-m110 =fit_SARIMA(sqrt_data,orders=c(1,1,0)) #ML - all vars are significant
-residual.analysis(model = m110$css) # Did not capture info well
+# SARIMA(1,1,3)x(0,1,1)_12
+m113 = fit_SARIMA(sqrt_data,orders=c(1,1,3))
+residual.analysis(model = m113$css) #Did not capture the info well
+# SARIMA(0,1,14)x(0,1,1)_12
+m0114 = fit_SARIMA(sqrt_data,orders=c(0,1,14))
+residual.analysis(model = m0114$css) #Captured info pretty well
 
 
-sc.AIC = AIC(m011$ml,m012$ml,m111$ml,m112$ml,m810$ml,m315$ml,m110$ml)
-sc.BIC = BIC(m011$ml,m012$ml,m111$ml,m112$ml,m810$ml,m315$ml,m110$ml)
+sc.AIC = AIC(m312$ml,m012$ml,m013$ml,m112$ml,m113$ml,m0114$ml)
+sc.BIC = BIC(m312$ml,m012$ml,m013$ml,m112$ml,m113$ml,m0114$ml)
 sort.score(sc.AIC, score = "aic")
 sort.score(sc.BIC, score = "bic")
+#The big model captured information well but have the worst aic and bic scores
 
 #Residuals of best models from BIC still have
 #significant autocorrelation
-
+residual.analysis(model = m012$css)
 #Best models from AIC captured the information well
 #and nothing valuable is in their residuals
 
 #Try overfitted model
-m415 = fit_SARIMA(sqrt_data,orders=c(4,1,5)) #Most vars are significant in CSS
-residual.analysis(m415$ml) #Pretty good residuals
+m0115 = fit_SARIMA(sqrt_data,orders=c(0,1,15)) #Most vars are significant in CSS
+residual.analysis(m0115$ml) #Capture info very well
 
 
-m316 = fit_SARIMA(sqrt_data,orders=c(3,1,6)) #About half of the vars are significant
-residual.analysis(m315$ml) #Pretty good residuals
+m1114 = fit_SARIMA(sqrt_data,orders=c(1,1,14)) #About half of the vars are significant
+residual.analysis(m1114$ml) #Capture info pretty well
 
 #ERROR METRICS
-m011css <- accuracy(m011$css)[1:7]
+m312css <- accuracy(m312$css)[1:7]
 m012css <- accuracy(m012$css)[1:7]
-m111css <- accuracy(m111$css)[1:7]
+m013css <- accuracy(m013$css)[1:7]
 m112css <- accuracy(m112$css)[1:7]
-m315css <- accuracy(m315$css)[1:7]
-m810css <- accuracy(m810$css)[1:7]
-m110css <- accuracy(m110$css)[1:7]
-m415css <- accuracy(m415$css)[1:7]
-m315css <- accuracy(m315$css)[1:7]
+m113css <- accuracy(m113$css)[1:7]
+m0114css <- accuracy(m0114$css)[1:7]
+m0115css <- accuracy(m0115$css)[1:7]
+m1114css <- accuracy(m1114$css)[1:7]
 df.Smodels <- data.frame(
-  rbind(m011css, m012css, m111css, m112css, m315css, m810css, m110css,
-        m415css,m315css)
+  rbind(m312css, m012css, m013css, m112css, m113css, m0114css, m0115css,m1114css)
 )
 colnames(df.Smodels) <- c("ME", "RMSE", "MAE", "MPE", "MAPE", 
                           "MASE", "ACF1")
-rownames(df.Smodels) <- c("SARIMA(0,1,1)x(2,1,3)_12", "SARIMA(0,1,2)x(2,1,3)_12", "SARIMA(1,1,1)x(2,1,3)_12", 
-                          "SARIMA(1,1,2)x(2,1,3)_12", "SARIMA(3,1,5)x(2,1,3)_12", "SARIMA(8,1,0)x(2,1,3)_12",
-                          "SARIMA(1,1,0)x(2,1,3)_12",  "SARIMA(4,1,5)x(2,1,3)_12", "SARIMA(3,1,6)x(2,1,3)_12")
+rownames(df.Smodels) <- c("SARIMA(3,1,2)x(0,1,1)_12", "SARIMA(0,1,2)x(0,1,1)_12", "SARIMA(0,1,3)x(0,1,1)_12", 
+                          "SARIMA(1,1,2)x(0,1,1)_12", "SARIMA(1,1,3)x(0,1,1)_12", "SARIMA(0,1,14)x(0,1,1)_12",
+                          "SARIMA(0,1,15)x(0,1,1)_12","SARIMA(1,1,14)x(0,1,1)_12")
 round(df.Smodels,  digits = 3)
 
 
-sc.AIC = AIC(m011$ml,m012$ml,m111$ml,m112$ml,
-             m810$ml,m315$ml,m110$ml,m415$ml,m316$ml)
-sc.BIC = BIC(m011$ml,m012$ml,m111$ml,m112$ml,
-             m810$ml,m315$ml,m110$ml,m415$ml,m316$ml)
+sc.AIC = AIC(m312$ml,m012$ml,m013$ml,m112$ml,m113$ml,m0114$ml,m0115$ml,m1114$ml)
+sc.BIC = BIC(m312$ml,m012$ml,m013$ml,m112$ml,m113$ml,m0114$ml,m0115$ml,m1114$ml)
 sort.score(sc.AIC, score = "aic")
 sort.score(sc.BIC, score = "bic")
+#Big models capture information well but have the worst aic and bic scores
 
 #AIC picks m316 over 315
 
 #FORECASTING
-forecastML = forecast(m316$ml,  h = 10)
+m15FC = Arima(subset,order=c(0,1,15),seasonal=list(order=c(0,1,1), period=12), 
+                         lambda = 0.5, method = "CSS")
+forecastML = forecast(m15FC,lambda = 0.5,  h = 10)
 forecastML
 plot(forecastML)
 
-forecastCSS = forecast(m316$css,  h = 10)
-forecastCSS
-plot(forecastCSS) #forecast my CSS model has a sligher smaller interval
