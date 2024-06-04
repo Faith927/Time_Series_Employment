@@ -425,7 +425,7 @@ show_ACF_PACF <- function(series,maxlag,name){
 subset = window(employment_TS,2010,)
 subset
 
-plot(subset,ylab='Employment',xlab="year", main = "Time series plot of Employment by 1000 from 2000-2024")
+plot(subset,ylab='Employment',xlab="year", main = "Time series plot of Employment by 1000 from 2010-2024")
 points(y=subset,
        x=time(subset),
        pch=as.vector(season(subset)),
