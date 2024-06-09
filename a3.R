@@ -25,6 +25,7 @@ residual.analysis <- function(model, std = TRUE,start = 2, class = c("ARIMA","GA
   }else {
     stop("The argument 'class' must be either 'ARIMA' or 'GARCH' ")
   }
+
   par(mfrow=c(3,2))
   plot(res.model,type='o',ylab='Standardised residuals', main="Time series plot of standardised residuals")
   abline(h=0)
@@ -38,6 +39,14 @@ residual.analysis <- function(model, std = TRUE,start = 2, class = c("ARIMA","GA
   par(mfrow=c(1,1))
 }
 
+show_ACF_PACF <- function(series,maxlag,name){
+  par(mfrow=c(1,2))
+  seasonal_acf(series,lag.max=maxlag, main=paste("ACF plot of",name))
+  seasonal_pacf(series, lag.max=maxlag, main=paste("PACF plot of",name))
+  par(mfrow=c(1,1))
+}
+
+
 sort.score <- function(x, score = c("bic", "aic")){
   if (score == "aic"){
     x[with(x, order(AIC)),]
@@ -48,174 +57,12 @@ sort.score <- function(x, score = c("bic", "aic")){
   }
 }
 
-# read in csv file
-employment <- read.csv("employment.csv", header=TRUE)
-employment
-class(employment) 
-head(employment)
-
-
-# Conversion to Time Series
-employment_TS <- ts(employment$employed, start = c(1978, 2), frequency = 12)
-class(employment_TS)
-summary(employment_TS)
-plot(employment_TS,type='o',ylab='Employment', main = " Time series plot of Employment by 1000")
-summary(employment_TS)
-
-# Calculate the Z-scores
-z_scores <- scale(employment_TS)
-
-# Identify outliers (e.g., Z-score > 3 or < -3)
-outliers_z <- which(abs(z_scores) > 3)
-outliers_z
-
-# adf test (weak indicator of non-stationary)
-adf.test(employment_TS, alternative = c("stationary")) # Use default value of k
-# pp test
-pp.test(employment_TS)
-# kpss test
-kpss.test(employment_TS)
-
-# MCleod test
-McLeod.Li.test(y=employment_TS,main="McLeod-Li Test Statistics for Daily Google Returns")
-
-# acf and pacf plots
-par(mfrow=c(1,2))
-acf(employment_TS,lag.max = 98, main ="ACF plot for the Global Temperature Anomalies series.")
-pacf(employment_TS, main ="PACF plot for the Global Temperature Anomalies series.")
-par(mfrow=c(1,1))
-
-
-# qq plot 
-qqnorm(employment_TS)
-qqline(employment_TS, col = 2)
-shapiro.test(employment_TS)
-
-
-# Box Cox Transformation
-BC <- BoxCox.ar(employment_TS, lambda = seq(0.5, 1, 0.01))
-BC$ci
-lambda <- BC$lambda[which(max(BC$loglike) == BC$loglike)]
-lambda # lambda = 0.5 corresponds to square root transformation?
-
-sqrt_data <- sqrt(employment_TS)
-
-plot(sqrt_data,type='o',ylab='Time series plot of BC transformed 
-     yearly average employment numbers.')
-
-# acf and pacf plots
-par(mfrow=c(1,2))
-acf(sqrt_data, main='ACF plot of employment series.')
-pacf(sqrt_data, main='PACF plot of employment series.')
-par(mfrow=c(1,1))
-
-# differencing
-diff.employment = diff(sqrt_data)
-par(mfrow=c(1,1))
-plot(diff.employment,type='o',ylab='Average employment numbers', main = "Time series plot of the first differenced
-     yearly average employment numbers.")
-abline(h=0)
-
-
-# strong correlation and arch affect
-McLeod.Li.test(y=diff.employment, main = "McLeod-Li Test Statistics for Monthly Employment Numbers")
-qqnorm(diff.employment)
-# adf, pp, kpss test, mcleod
-adf.test(diff.employment) # stationary
-pp.test(diff.employment) # stationary
-kpss.test(diff.employment) # non stationary
-McLeod.Li.test(y=diff.employment,main="McLeod-Li Test Statistics for Daily Google Returns")
-
-
-hist(diff.employment, 
-     main = "Histogram of diff.employment",
-     xlab = "Difference in Employment",
-     ylab = "Frequency",
-     col = "skyblue",
-     border = "white")
-
-# qq plot 
-qqnorm(diff.employment)
-qqline(diff.employment, col = 2)
-shapiro.test(diff.employment)
-
-# pacf and acf plots
-par(mfrow=c(1,2))
-acf(diff.employment, main='ACF plot of unemployment series.')
-pacf(diff.employment, main='PACF plot of unemployment series.')
-par(mfrow=c(1,1))
-
-
-# qq plot 
-qqnorm(diff.employment)
-qqline(diff.employment, col = 2)
-shapiro.test(diff.employment)
-
-
-
-# Normalization 
-# A small positive constant
-log_diff_employment <- log(diff.employment + 2.7)
-min_value <- min(diff.employment)
-min_value
-
-# qq plot
-qqnorm(log_diff_employment)
-qqline(log_diff_employment, col = 2)
-shapiro.test(log_diff_employment)
-
-
 
 # Normalize function
 normalize <- function(x) {
   return((x - min(x)) / (max(x) - min(x)))
 }
 
-normalized_ts <- normalize(diff.employment)
-
-# qq plot 
-qqnorm(normalized_ts)
-qqline(normalized_ts, col = 2)
-shapiro.test(normalized_ts)
-
-# need arma model to capture trend of the series
-# significatn lags in acf and pacf and mcleod significant so then do arma + garch
-# ARCH
-
-# module 9, increasing trend with a variation that get higher as time passes
-# indicates a higher variability with higher levels of employment
-# do log
-diff.employment = diff(log(sqrt_data))
-plot(diff.employment)
-# strong correlation and arch affect
-McLeod.Li.test(y=diff.employment, main = "McLeod-Li Test Statistics for Monthly Employment Numbers")
-qqnorm(diff.employment)
-# adf, pp, kpss test, mcleod
-adf.test(diff.employment) # stationary
-pp.test(diff.employment) # stationary
-kpss.test(diff.employment) # non stationary
-McLeod.Li.test(y=diff.employment,main="McLeod-Li Test Statistics for Monthly Employment Numbers")
-
-
-
-par(mfrow=c(1,2))
-acf(diff.employment, main="The ACF plot of returns series for Monthly Employment Numbers")
-pacf(diff.employment, main="The PACF plot of returns series Monthly Employment Numbers")
-par(mfrow=c(1,1))
-# a lot of significant lags...
-# ARIMA(7,1, 8), ARIMA(8, 1, 8), 
-
-eacf(diff.employment)
-# {ARMA(4,1,8), ARMA(4,1,9), ARMA(5,1,8), ARMA(5,1,8)}
-# chose because more parameters to choose from and 5,6 is 11 anyway
-
-
-res = armasubsets(y=diff.employment,nar=14,nma=14,y.name='p',ar.method='ols')
-plot(res)
-
-
-# -------SEASONAL ARIMA-------------------
-# Helper function ---------------------------------------------------------------------
 
 helper <- function(class = c("acf", "pacf"), ...) {
   
@@ -273,69 +120,95 @@ show_ACF_PACF <- function(series,maxlag,name){
   par(mfrow=c(1,1))
 }
 
+
+# read in csv file
+employment <- read.csv("employment.csv", header=TRUE)
+employment
+class(employment) 
+head(employment)
+
+
+# Conversion to Time Series
+employment_TS <- ts(employment$employed, start = c(1978, 2), frequency = 12)
 #Subset the series ot 2010-2024 only
 subset = window(employment_TS,2010,)
 subset
 
-plot(subset,ylab='Employment',xlab="year", main = "Time series plot of Employment by 1000 from 2010-2024")
-points(y=subset,
-       x=time(subset),
-       pch=as.vector(season(subset)),
-       cex=0.8)
+class(subset)
+summary(subset)
+plot(subset,type='l',ylab='Employment', main = " Time series plot of Employment by 1000")
+summary(subset)
+
+# acf and pacf plots
+par(mfrow=c(1,2))
+acf(subset,lag.max = 98, main ="ACF plot for the Global Temperature Anomalies series.")
+pacf(subset, main ="PACF plot for the Global Temperature Anomalies series.")
+par(mfrow=c(1,1))
+
 
 # adf test (weak indicator of non-stationary)
-adf.test(subset, alternative = c("stationary")) # Use default value of k
+adf.test(subset, alternative = c("stationary"))
 # pp test
 pp.test(subset)
 # kpss test
 kpss.test(subset)
-#=> The series is non-stationary
-# acf and pacf plots
-show_ACF_PACF(subset,maxlag=48,name="Employment series")
-#Slow decaying pattern in ACF => Seasonal trend
+
+# # MCleod test
+# McLeod.Li.test(y=employment_TS,main="McLeod-Li Test Statistics for Monthly Employment Numbers")
+
+# qq plot 
+qqnorm(subset)
+qqline(subset, col = 2)
+shapiro.test(subset)
+
+# Normalization 
+# A small positive constant
+log_employment <- log(subset + .001)
+min_value <- min(subset)
+
+# qq plot
+qqnorm(log_employment)
+qqline(log_employment, col = 2)
+shapiro.test(log_employment)
+
+
+normalized_ts <- normalize(subset)
+
+# qq plot 
+qqnorm(normalized_ts)
+qqline(normalized_ts, col = 2)
+shapiro.test(normalized_ts)
+
+
+# Box Cox Transformation
+BC <- BoxCox.ar(subset, lambda = seq(0.5, 1, 0.01))
+BC$ci
+lambda <- BC$lambda[which(max(BC$loglike) == BC$loglike)]
+lambda # lambda = 0.5 corresponds to square root transformation?
 
 sqrt_data <- sqrt(subset)
 
-sqrt_data
-plot(sqrt_data,ylab='Time series plot of SQRT 
-     yearly average employment numbers.')
+plot(sqrt_data,type='l',ylab= 'Employment Numbers', main = 'Time series plot of BC transformed 
+     monthly average employment numbers.')
 
 # acf and pacf plots
 par(mfrow=c(1,2))
-show_ACF_PACF(sqrt_data,maxlag=48,name="Squared-rooted subset series")
+acf(sqrt_data, main='ACF plot of employment series.')
+pacf(sqrt_data, main='PACF plot of employment series.')
 par(mfrow=c(1,1))
 
-# DIFFERENCING
+# differencing
 
-diff_sqrt = diff(sqrt_data)
+diff.employment = diff(sqrt_data)
+
+par(mfrow=c(1,2))
+show_ACF_PACF(diff.employment,maxlag=48,name="Squared-rooted subset series")
 par(mfrow=c(1,1))
-plot(diff_sqrt,type='o',ylab='Average employment numbers', main = "Time series plot of the first difference
-      square-rooted series")
-abline(h=0)
 
-# adf, pp, kpss test, mcleod
-adf.test(diff_sqrt) # stationary
-pp.test(diff_sqrt) # stationary
-kpss.test(diff_sqrt) # stationary
-McLeod.Li.test(y=diff_sqrt,main="McLeod-Li Test Statistics for Employment series")
-#=> The diff series is staionary
-
-hist(diff_sqrt, 
-     main = "Histogram of diff.employment",
-     xlab = "Difference in Employment",
-     ylab = "Frequency",
-     col = "skyblue",
-     border = "white")
-
-# qq plot 
-qqnorm(diff_sqrt)
-qqline(diff_sqrt, col = 2)
-shapiro.test(diff_sqrt)
-
-# pacf and acf plots
-show_ACF_PACF(diff_sqrt, maxlag = 60,name="the first difference
-      square-rooted series")
-#Still slow decay pattern in ACF => Seasonality trend
+# adf, pp, kpss test
+adf.test(diff.employment)
+pp.test(diff.employment) 
+kpss.test(diff.employment)
 
 #SEASONAL ARIMA
 sqrt_data
@@ -438,19 +311,39 @@ sort.score(sc.AIC, score = "aic")
 sort.score(sc.BIC, score = "bic")
 #The big model captured information well but have the worst aic and bic scores
 
+# error metrics for first 6 models:
+#ERROR METRICS
+m312css <- accuracy(m312$css)[1:7]
+m012css <- accuracy(m012$css)[1:7]
+m013css <- accuracy(m013$css)[1:7]
+m112css <- accuracy(m112$css)[1:7]
+m113css <- accuracy(m113$css)[1:7]
+m0114css <- accuracy(m0114$css)[1:7]
+
+df.Smodels <- data.frame(
+  rbind(m312css, m012css, m013css, m112css, m113css, m0114css)
+)
+colnames(df.Smodels) <- c("ME", "RMSE", "MAE", "MPE", "MAPE", 
+                          "MASE", "ACF1")
+rownames(df.Smodels) <- c("SARIMA(3,1,2)x(0,1,1)_12", "SARIMA(0,1,2)x(0,1,1)_12", "SARIMA(0,1,3)x(0,1,1)_12", 
+                          "SARIMA(1,1,2)x(0,1,1)_12", "SARIMA(1,1,3)x(0,1,1)_12", "SARIMA(0,1,14)x(0,1,1)_12"
+                          )
+round(df.Smodels,  digits = 3)
+
+
 #Residuals of best models from BIC still have
 #significant autocorrelation
 residual.analysis(model = m012$css)
 #Best models from AIC captured the information well
 #and nothing valuable is in their residuals
 
+m1114 = fit_SARIMA(sqrt_data,orders=c(1,1,14)) #About half of the vars are significant
+residual.analysis(m1114$ml) #Capture info pretty well
+
 #Try overfitted model
 m0115 = fit_SARIMA(sqrt_data,orders=c(0,1,15)) #Most vars are significant in CSS
 residual.analysis(m0115$ml) #Capture info very well
 
-
-m1114 = fit_SARIMA(sqrt_data,orders=c(1,1,14)) #About half of the vars are significant
-residual.analysis(m1114$ml) #Capture info pretty well
 
 #ERROR METRICS
 m312css <- accuracy(m312$css)[1:7]
@@ -461,6 +354,7 @@ m113css <- accuracy(m113$css)[1:7]
 m0114css <- accuracy(m0114$css)[1:7]
 m0115css <- accuracy(m0115$css)[1:7]
 m1114css <- accuracy(m1114$css)[1:7]
+
 df.Smodels <- data.frame(
   rbind(m312css, m012css, m013css, m112css, m113css, m0114css, m0115css,m1114css)
 )
