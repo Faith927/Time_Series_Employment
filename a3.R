@@ -25,7 +25,7 @@ residual.analysis <- function(model, std = TRUE,start = 2, class = c("ARIMA","GA
   }else {
     stop("The argument 'class' must be either 'ARIMA' or 'GARCH' ")
   }
-
+  
   par(mfrow=c(3,2))
   plot(res.model,type='o',ylab='Standardised residuals', main="Time series plot of standardised residuals")
   abline(h=0)
@@ -136,14 +136,12 @@ subset
 
 class(subset)
 summary(subset)
+x11()
 plot(subset,type='l',ylab='Employment', main = " Time series plot of Employment by 1000")
 summary(subset)
 
 # acf and pacf plots
-par(mfrow=c(1,2))
-acf(subset,lag.max = 98, main ="ACF plot for the Global Temperature Anomalies series.")
-pacf(subset, main ="PACF plot for the Global Temperature Anomalies series.")
-par(mfrow=c(1,1))
+show_ACF_PACF(subset,maxlag = 48,name = "the Employment series.")
 
 
 # adf test (weak indicator of non-stationary)
@@ -193,8 +191,7 @@ plot(sqrt_data,type='l',ylab= 'Employment Numbers', main = 'Time series plot of 
 
 # acf and pacf plots
 par(mfrow=c(1,2))
-acf(sqrt_data, main='ACF plot of employment series.')
-pacf(sqrt_data, main='PACF plot of employment series.')
+show_ACF_PACF(sqrt_data,maxlag = 48,name = "the Employment series.")
 par(mfrow=c(1,1))
 
 # differencing
@@ -214,7 +211,7 @@ kpss.test(diff.employment)
 sqrt_data
 #Start with a baseline model with D=1 
 m1 = Arima(sqrt_data,order=c(0,0,0),seasonal=list(order=c(0,1,0), period=12))
-res.m1 = residuals(m1);  
+res.m1 = residuals(m1)
 par(mfrow=c(1,1))
 plot(res.m1,xlab='Time',ylab='Residuals',main="Time series plot of the residuals")
 show_ACF_PACF(res.m1, maxlag = 78, name="Residuals of SARIMA(0,0,0)x(0,1,0)_12")
@@ -327,7 +324,7 @@ colnames(df.Smodels) <- c("ME", "RMSE", "MAE", "MPE", "MAPE",
                           "MASE", "ACF1")
 rownames(df.Smodels) <- c("SARIMA(3,1,2)x(0,1,1)_12", "SARIMA(0,1,2)x(0,1,1)_12", "SARIMA(0,1,3)x(0,1,1)_12", 
                           "SARIMA(1,1,2)x(0,1,1)_12", "SARIMA(1,1,3)x(0,1,1)_12", "SARIMA(0,1,14)x(0,1,1)_12"
-                          )
+)
 round(df.Smodels,  digits = 3)
 
 
@@ -375,9 +372,17 @@ sort.score(sc.BIC, score = "bic")
 #AIC picks m316 over 315
 
 #FORECASTING
-m15FC = Arima(subset,order=c(0,1,15),seasonal=list(order=c(0,1,1), period=12), 
-                         lambda = 0.5, method = "CSS")
-forecastML = forecast(m15FC,lambda = 0.5,  h = 10)
+
+
+FC_CSS = Arima(subset,order=c(0,1,15),seasonal=list(order=c(0,1,1), period=12), 
+              lambda = 0.5, method = "CSS")
+forecastCSS = forecast(FC_CSS,lambda = 0.5,  h = 10)
+forecastCSS
+plot(forecastCSS)
+
+FC_ML = Arima(subset,order=c(0,1,15),seasonal=list(order=c(0,1,1), period=12), 
+               lambda = 0.5, method = "ML")
+forecastML = forecast(FC_ML,lambda = 0.5,  h = 10)
 forecastML
 plot(forecastML)
 
