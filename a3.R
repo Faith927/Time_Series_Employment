@@ -122,7 +122,6 @@ show_ACF_PACF <- function(series,maxlag,name){
 
 
 # read in csv file
-setwd("Desktop/RMIT/TSA/A3");
 employment <- read.csv("employment.csv", header=TRUE)
 employment
 class(employment) 
