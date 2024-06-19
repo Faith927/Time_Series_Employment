@@ -1,7 +1,9 @@
 # Time_Series_Employment
+
+## Purpose
 Time series model capable of predicting the next 10 months of Australian employment numbers.
 
-## 2. Dataset
+## Dataset
 The dataset used is from the Australian Bureau of Statistics
 
 # Configuration
